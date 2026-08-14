@@ -1,0 +1,54 @@
+// Most styling now comes from AgentChatComponent itself
+// (@c8y/ngx-components/ai/agent-chat) — this widget only needs to size its
+// own host, style the no-context fallback banner, and lay out the optional
+// agent-details header above the chat.
+
+// Custom-element hosts aren't block-level by default, so without this the
+// <ai-context-chat-widget> tag itself just shrink-wraps to content height —
+// no percentage height inside the template can "see" the real dashboard
+// cell height set by the grid layout without this being here first, no
+// matter what flex/height rules exist further down.
+:host {
+  display: block;
+  height: 100%;
+  min-height: 320px;
+}
+
+.ai-context-chat-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// Mirrors @c8y/style's own `c8y-widget-ai-chat-section` rule (display:flex,
+// default row direction, no flex-direction override) — that's the proven
+// contract AgentChatComponent's internal sticky-input-bar CSS
+// (`.chat-input { margin-top: auto; position: sticky; bottom: 0 }`) actually
+// relies on. A `flex-direction: column` + `flex-grow` wrapper (what this used
+// to be) gives <c8y-agent-chat> a definite height too, but doesn't give its
+// *internal* content the same stretch behavior, so the input bar floats
+// instead of pinning to the bottom on tall widgets.
+.ai-agent-chat-container {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0; // let this shrink below content size so the chat scrolls internally instead of growing past the widget
+
+  c8y-agent-chat {
+    width: 100%;
+  }
+}
+
+.ai-agent-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--c8y-global-separator, #e0e0e0);
+}
+
+.alert-bar {
+  width: 100%;
+  margin-bottom: 0;
+}

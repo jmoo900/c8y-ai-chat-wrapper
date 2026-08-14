@@ -1,0 +1,85 @@
+<div class="checkbox">
+  <label>
+    <input type="checkbox" [formControl]="formGroup.controls.showHeader" />
+    Show header with agent details and controls
+  </label>
+  <p class="help-block">Displays agent name, type, availability, and token usage above the chat.</p>
+</div>
+
+<div class="checkbox">
+  <label>
+    <input type="checkbox" [formControl]="formGroup.controls.hideToolCalls" />
+    Hide tool call details
+  </label>
+  <p class="help-block">Hides the &quot;Used tool ...&quot; style indicators shown while the agent is working.</p>
+</div>
+
+<div class="form-group">
+  <c8y-form-group>
+    <label for="ai-context-chat-title">Chat title</label>
+    <input
+      id="ai-context-chat-title"
+      type="text"
+      class="form-control"
+      [formControl]="formGroup.controls.chatTitle"
+      placeholder="Optional"
+    />
+  </c8y-form-group>
+</div>
+
+<div class="form-group">
+  <c8y-form-group>
+    <label for="ai-context-chat-welcome-text">Welcome text</label>
+    <textarea
+      id="ai-context-chat-welcome-text"
+      class="form-control"
+      rows="3"
+      [formControl]="formGroup.controls.welcomeText"
+      placeholder="Optional"
+    ></textarea>
+  </c8y-form-group>
+</div>
+
+<div class="form-group">
+  <c8y-form-group>
+    <label for="ai-context-chat-agent-name">Select Agent<span class="text-danger">*</span></label>
+    @if (!agentDirectoryUnavailable) {
+      <select id="ai-context-chat-agent-name" class="form-control" [formControl]="formGroup.controls.agentName">
+        @if (currentAgentMissingFromList) {
+          <option [value]="formGroup.controls.agentName.value">
+            {{ formGroup.controls.agentName.value }} (current)
+          </option>
+        }
+        @for (agent of availableAgents; track agent.name) {
+          <option [value]="agent.name">{{ agent.name }}{{ agent.type ? ' (' + agent.type + ')' : '' }}</option>
+        }
+      </select>
+    } @else {
+      <input
+        id="ai-context-chat-agent-name"
+        type="text"
+        class="form-control"
+        [formControl]="formGroup.controls.agentName"
+        placeholder="e.g. asset-support-agent"
+      />
+    }
+  </c8y-form-group>
+  <p class="help-block">
+    This is the agent name segment of the endpoint path
+    <code>/service/ai/agent/text/&hellip;</code>.
+  </p>
+</div>
+
+@if (selectedAgentEntry) {
+  <div class="form-group">
+    <label>Selected:</label>
+    <fieldset class="selected-agent-preview">
+      <legend class="selected-agent-preview__caption">Selected</legend>
+      <pre class="selected-agent-preview__json">{{ selectedAgentJson }}</pre>
+    </fieldset>
+  </div>
+}
+
+<ng-template #agentPreview>
+  <ai-context-chat-widget [config]="config$ | async"></ai-context-chat-widget>
+</ng-template>

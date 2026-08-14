@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style type="text/css">
+      [ng:cloak],
+      [ng-cloak],
+      [data-ng-cloak],
+      [x-ng-cloak],
+      .ng-cloak,
+      .x-ng-cloak {
+        display: none !important;
+      }
+
+      body {
+        background: var(--c8y-body-background-color, #fff);
+        margin: 0;
+      }
+
+      .init-load {
+        max-width: 320px;
+        height: 100vh;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 32px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      No custom root element/selector here on purpose — confirmed against
+      a real `ng add @c8y/websdk --application=@c8y/sample-plugin` scaffold:
+      BootstrapComponent's selector targets `body` directly, and the app
+      content is injected into it. This just shows a loading placeholder
+      before that happens.
+    -->
+    <div class="init-load">Loading…</div>
+  </body>
+</html>

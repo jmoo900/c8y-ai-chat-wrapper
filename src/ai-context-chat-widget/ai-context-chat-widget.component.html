@@ -1,0 +1,36 @@
+<div class="ai-context-chat-widget">
+  @if (hasContext) {
+    @if (showHeader) {
+      <div class="ai-agent-header">
+        <div class="ai-agent-header__info">
+          <strong>{{ agentDirectoryEntry?.name || agentName }}</strong>
+          @if (agentMetaLine) {
+            <div class="text-muted small">{{ agentMetaLine }}</div>
+          }
+        </div>
+        @if (cumulativeUsage; as usage) {
+          <span class="tag tag--info">Tokens: {{ usage.totalTokens }}</span>
+        }
+      </div>
+    }
+    <div class="ai-agent-chat-container">
+      <c8y-agent-chat
+        [agent]="agentName"
+        [variables]="variables"
+        [chatConfig]="chatConfig"
+        [assistantMessageDisplayConfig]="assistantMessageDisplayConfig"
+      />
+    </div>
+  } @else {
+    <!--
+      Codex feedback-pattern alignment (Design System > Patterns > Feedback
+      Patterns): sticky inline warning alert — no dismiss, since it
+      reflects live scoping state, not a one-off event.
+    -->
+    <div class="alert alert-warning alert-bar" role="status">
+      <i class="dlt-c8y-icon-exclamation-triangle" aria-hidden="true"></i>
+      No asset or device context is available for this dashboard. Open this widget from a device, group, or asset
+      dashboard to start chatting.
+    </div>
+  }
+</div>
