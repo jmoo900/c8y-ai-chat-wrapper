@@ -1,5 +1,7 @@
-import { Component, effect, input, ViewChild } from '@angular/core';
+import { Component, effect, inject, input, ViewChild } from '@angular/core';
+import { DashboardChildComponent, WidgetActionWrapperComponent } from '@c8y/ngx-components';
 import { AgentChatComponent } from '@c8y/ngx-components/ai/agent-chat';
+import { TranslateService } from '@ngx-translate/core';
 
 import { AiAgentDirectoryEntry, AiAgentDirectoryService } from './ai-agent-directory.service';
 import { AiAgentRuntimeVariables, AiContextChatWidgetConfig, DEFAULT_WIDGET_CONFIG } from './ai-context-chat-widget.model';
@@ -27,13 +29,24 @@ import { mapManagedObjectToContext } from './managed-object-context.util';
  * auto-populates that field with the managed object the dashboard is
  * currently scoped to (confirmed against @c8y/sample-plugin@1024.14.1's
  * own SamplePluginConfig, and against a live tenant).
+ *
+ * The "Clear conversation" control is projected into the dashboard's own
+ * shared per-widget title bar (alongside the fullscreen/lock icons) via
+ * `<c8y-widget-action>` (`WidgetActionWrapperComponent`, exported from
+ * `@c8y/ngx-components`) — documented in the platform's Codex under the
+ * datapoints export selector's icon-only mode, and confirmed against its
+ * real implementation, which registers projected content onto the ambient
+ * `DashboardChildComponent`'s `_additionalHeaderTemplates`. That's the same
+ * mechanism the stock "AI Agent Chat" widget uses for its own equivalent
+ * icon (confirmed live: it calls `AgentChatComponent.cancel()`/
+ * `resetMessages()` — same "AI response cancelled." message either way).
  */
 @Component({
   selector: 'ai-context-chat-widget',
   templateUrl: './ai-context-chat-widget.component.html',
   styleUrls: ['./ai-context-chat-widget.component.scss'],
   standalone: true,
-  imports: [AgentChatComponent]
+  imports: [AgentChatComponent, WidgetActionWrapperComponent]
 })
 export class AiContextChatWidgetComponent {
   // `| null` because the config-form component's live preview feeds this
@@ -56,6 +69,19 @@ export class AiContextChatWidgetComponent {
   private static readonly DEBUG_STORAGE_KEY = 'ai-context-chat-widget:debug';
 
   @ViewChild(AgentChatComponent) private agentChat?: AgentChatComponent;
+
+  /**
+   * `WidgetActionWrapperComponent` (`<c8y-widget-action>`) projects its
+   * content into the dashboard's own shared per-widget title bar — the row
+   * with the fullscreen/lock icons — via `DashboardChildComponent`, which it
+   * injects non-optionally and throws without. This widget also renders in
+   * contexts with no such ancestor (e.g. the config page's live preview via
+   * `WidgetConfigService.setPreview()`), so this optional injection gates
+   * whether `<c8y-widget-action>` is safe to render at all.
+   */
+  private readonly dashboardChild = inject(DashboardChildComponent, { optional: true });
+
+  private readonly translateService = inject(TranslateService);
 
   agentDirectoryEntry: AiAgentDirectoryEntry | null = null;
 
@@ -86,6 +112,15 @@ export class AiContextChatWidgetComponent {
 
   get showHeader(): boolean {
     return !!this.config()?.showHeader;
+  }
+
+  get isInsideDashboard(): boolean {
+    return !!this.dashboardChild;
+  }
+
+  /** Gates the debug-only "Simulate error" control — see simulateAgentRequestError(). */
+  get showDebugTools(): boolean {
+    return this.isDebugEnabled;
   }
 
   /** Bound to AgentChatComponent's [variables] input — see class doc comment. */
@@ -127,6 +162,79 @@ export class AiContextChatWidgetComponent {
   /** Live cumulative token usage from the child AgentChatComponent, once rendered. */
   get cumulativeUsage() {
     return this.agentChat?.cumulativeUsage();
+  }
+
+  /**
+   * Clears the conversation, matching the stock "AI Agent Chat" widget's
+   * trash-icon control. `AgentChatComponent.resetMessages()` cancels any
+   * in-flight stream and empties its message history — since that history
+   * is exactly what gets resent (and accumulates) on every turn, clearing
+   * it is a real way to recover from a conversation that's grown large
+   * enough to approach the model's context-length limit, not just a
+   * cosmetic reset.
+   *
+   * Also explicitly clears `agentRequestError`: `resetMessages()`'s internal
+   * `cancel()` only ever sets that signal (via an aborted in-flight
+   * request's rejection reaching the stream's own error handler) — it never
+   * clears it. So a *settled* error (the request already failed, nothing
+   * in flight) is left untouched by resetMessages() alone, and both
+   * AgentChatComponent's own inline banner and our supplementary hint would
+   * keep showing a stale error after the conversation was already cleared.
+   */
+  clearConversation(): void {
+    this.agentChat?.resetMessages();
+    this.agentChat?.agentRequestError.set('');
+  }
+
+  /**
+   * Debug-only: sets AgentChatComponent's own `agentRequestError` signal
+   * directly (it's a public WritableSignal), to preview the error hint and
+   * its styling/placement on demand — without spending real tokens on a
+   * conversation long enough to genuinely hit the context limit. Only
+   * reachable when `showDebugTools` is on (see the `debug` input / the
+   * `ai-context-chat-widget:debug` localStorage flag).
+   */
+  simulateAgentRequestError(): void {
+    this.agentChat?.agentRequestError.set('An error occurred while communicating with the AI agent.');
+  }
+
+  /**
+   * Mirrors AgentChatComponent's own `agentRequestError` signal, so we can
+   * show a more actionable supplementary hint alongside its built-in
+   * (often generic) error banner.
+   *
+   * AgentChatComponent reduces every stream failure down to `error?.message`,
+   * falling back to a generic "An error occurred while communicating with
+   * the AI agent." whenever the underlying error object has no top-level
+   * `message` — which is common for AI_APICallError-shaped failures (e.g.
+   * a context-length error nested three levels deep in
+   * `error.error.responseBody`). That raw error is only ever
+   * `console.error`'d, never exposed on any public property, so there is no
+   * way to recover or display the specific underlying reason from outside
+   * this component — confirmed against AgentChatComponent's public API
+   * surface (no error-detail output, `agentRequestError` only ever holds
+   * the already-reduced generic string).
+   */
+  get agentRequestError(): string {
+    return this.agentChat?.agentRequestError() ?? '';
+  }
+
+  /**
+   * Whether to show the supplementary hint above. `resetMessages()` (our own
+   * "Clear conversation" control, or the stock widget's equivalent) cancels
+   * any in-flight stream via `cancel()`, which sets this same
+   * `agentRequestError` signal to "AI response cancelled." — an expected,
+   * user-initiated outcome, not a failure needing the context-limit
+   * explanation. `TranslateService` (rather than a hardcoded English string)
+   * keeps this correct under other locales, since AgentChatComponent
+   * constructs that message via the same translation key.
+   */
+  get showAgentRequestErrorHint(): boolean {
+    const error = this.agentRequestError;
+    if (!error) {
+      return false;
+    }
+    return error !== this.translateService.instant('AI response cancelled.');
   }
 
   /**

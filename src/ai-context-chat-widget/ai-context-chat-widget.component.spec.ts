@@ -1,8 +1,15 @@
 import { TestBed } from '@angular/core/testing';
+import { DashboardChildComponent } from '@c8y/ngx-components';
+import { TranslateService } from '@ngx-translate/core';
 
 import { AiAgentDirectoryService } from './ai-agent-directory.service';
 import { AiContextChatWidgetComponent } from './ai-context-chat-widget.component';
 import { DEFAULT_WIDGET_CONFIG } from './ai-context-chat-widget.model';
+
+// Passthrough stub: returns the key unchanged, so tests can assert against
+// the same literal English string AgentChatComponent uses as its
+// translation key for the cancellation message.
+const translateServiceStub = { instant: (key: string) => key };
 
 /**
  * Deliberately never calls `fixture.detectChanges()`: this component's
@@ -19,7 +26,10 @@ describe('AiContextChatWidgetComponent', () => {
   function createComponent() {
     TestBed.configureTestingModule({
       imports: [AiContextChatWidgetComponent],
-      providers: [{ provide: AiAgentDirectoryService, useValue: { findAgent: findAgentMock } }]
+      providers: [
+        { provide: AiAgentDirectoryService, useValue: { findAgent: findAgentMock } },
+        { provide: TranslateService, useValue: translateServiceStub }
+      ]
     });
     return TestBed.createComponent(AiContextChatWidgetComponent);
   }
@@ -115,6 +125,121 @@ describe('AiContextChatWidgetComponent', () => {
       fixture.componentInstance.agentDirectoryEntry = { name: 'a', type: 'text', raw: {} };
 
       expect(fixture.componentInstance.agentMetaLine).toBe('Type: TEXT');
+    });
+  });
+
+  describe('agentRequestError', () => {
+    it('is empty when the underlying AgentChatComponent has not rendered yet', () => {
+      const fixture = createComponent();
+      expect(fixture.componentInstance.agentRequestError).toBe('');
+    });
+  });
+
+  describe('showAgentRequestErrorHint', () => {
+    it('is false when there is no error', () => {
+      const fixture = createComponent();
+      expect(fixture.componentInstance.showAgentRequestErrorHint).toBe(false);
+    });
+
+    it('is false for the "AI response cancelled." message (Clear conversation / cancel)', () => {
+      const fixture = createComponent();
+      // @ts-expect-error -- private field, stubbed directly since this test never calls detectChanges()
+      fixture.componentInstance.agentChat = { agentRequestError: () => 'AI response cancelled.' };
+
+      expect(fixture.componentInstance.showAgentRequestErrorHint).toBe(false);
+    });
+
+    it('is true for any other error message', () => {
+      const fixture = createComponent();
+      // @ts-expect-error -- private field, stubbed directly since this test never calls detectChanges()
+      fixture.componentInstance.agentChat = { agentRequestError: () => 'Something else went wrong.' };
+
+      expect(fixture.componentInstance.showAgentRequestErrorHint).toBe(true);
+    });
+  });
+
+  describe('clearConversation', () => {
+    it('does not throw when the underlying AgentChatComponent has not rendered yet', () => {
+      const fixture = createComponent();
+      expect(() => fixture.componentInstance.clearConversation()).not.toThrow();
+    });
+
+    it('resets messages and explicitly clears a settled agentRequestError', () => {
+      const fixture = createComponent();
+      const resetMessages = vi.fn();
+      const agentRequestErrorSet = vi.fn();
+      const agentRequestError = Object.assign(
+        () => 'An error occurred while communicating with the AI agent.',
+        { set: agentRequestErrorSet }
+      );
+      const mockAgentChat = { resetMessages, agentRequestError };
+      // @ts-expect-error -- private field, stubbed directly since this test never calls detectChanges()
+      fixture.componentInstance.agentChat = mockAgentChat;
+
+      fixture.componentInstance.clearConversation();
+
+      // resetMessages() alone only ever sets agentRequestError (via an
+      // aborted in-flight request's rejection) — it never clears one that's
+      // already settled, so this must be an explicit, separate call.
+      expect(resetMessages).toHaveBeenCalledTimes(1);
+      expect(agentRequestErrorSet).toHaveBeenCalledWith('');
+    });
+  });
+
+  describe('showDebugTools', () => {
+    it('is false by default', () => {
+      const fixture = createComponent();
+      expect(fixture.componentInstance.showDebugTools).toBe(false);
+    });
+
+    it('is true when the debug input is set', () => {
+      const fixture = createComponent();
+      fixture.componentRef.setInput('debug', true);
+
+      expect(fixture.componentInstance.showDebugTools).toBe(true);
+    });
+  });
+
+  describe('simulateAgentRequestError', () => {
+    it('does not throw when the underlying AgentChatComponent has not rendered yet', () => {
+      const fixture = createComponent();
+      expect(() => fixture.componentInstance.simulateAgentRequestError()).not.toThrow();
+    });
+
+    it('sets a canned generic error message on the underlying agentRequestError signal', () => {
+      const fixture = createComponent();
+      const agentRequestErrorSet = vi.fn();
+      // @ts-expect-error -- private field, stubbed directly since this test never calls detectChanges()
+      fixture.componentInstance.agentChat = { agentRequestError: Object.assign(() => '', { set: agentRequestErrorSet }) };
+
+      fixture.componentInstance.simulateAgentRequestError();
+
+      expect(agentRequestErrorSet).toHaveBeenCalledWith('An error occurred while communicating with the AI agent.');
+    });
+  });
+
+  describe('isInsideDashboard', () => {
+    // Gates whether <c8y-widget-action> is safe to render: it injects
+    // DashboardChildComponent non-optionally and throws without one — this
+    // widget also renders in the config page's live preview, which has no
+    // such ancestor.
+    it('is false when no DashboardChildComponent ancestor is provided', () => {
+      const fixture = createComponent();
+      expect(fixture.componentInstance.isInsideDashboard).toBe(false);
+    });
+
+    it('is true when a DashboardChildComponent ancestor is provided', () => {
+      TestBed.configureTestingModule({
+        imports: [AiContextChatWidgetComponent],
+        providers: [
+          { provide: AiAgentDirectoryService, useValue: { findAgent: findAgentMock } },
+          { provide: TranslateService, useValue: translateServiceStub },
+          { provide: DashboardChildComponent, useValue: {} }
+        ]
+      });
+      const fixture = TestBed.createComponent(AiContextChatWidgetComponent);
+
+      expect(fixture.componentInstance.isInsideDashboard).toBe(true);
     });
   });
 

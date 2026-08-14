@@ -48,7 +48,81 @@
   border-bottom: 1px solid var(--c8y-global-separator, #e0e0e0);
 }
 
+// Without agent-details content to sit alongside, the full-width bordered
+// bar above just reads as an empty strip with a stray icon in the corner —
+// this variant collapses it down to a plain, compact corner control instead.
+.ai-agent-header--minimal {
+  justify-content: flex-end;
+  padding: 4px 0 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.ai-agent-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// Fallback rendering of the same clear-conversation action for contexts
+// with no real DashboardChildComponent ancestor (see isInsideDashboard) —
+// a text label reads better than a bare icon sitting loose in the widget's
+// own content rather than a title bar.
+.ai-agent-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--c8y-text-muted, #6a747c);
+  white-space: nowrap;
+
+  &:hover,
+  &:focus {
+    color: var(--c8y-danger, #d32f2f);
+    text-decoration: none;
+  }
+}
+
 .alert-bar {
   width: 100%;
   margin-bottom: 0;
+}
+
+// Matches the composer bar's background so this reads as a continuation
+// of the chat area rather than a separate white band. The CSS variable
+// @c8y/style's own `.chat-input` uses for this (`--c8y-component-background-default`,
+// falling back to `--c8y-root-component-background-default`) didn't
+// actually resolve at runtime — confirmed via DevTools (computed
+// background-color stayed pure white, `rgb(255, 255, 255)`, while the real
+// composer bar computed to `rgb(249, 250, 251)`) — so this is the literal,
+// confirmed-correct value instead of a variable that may not exist in this
+// tenant's build. Keep both in sync if the composer's own shade ever
+// changes.
+.ai-agent-error-hint {
+  flex-shrink: 0;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  background-color: #f9fafb;
+}
+
+.ai-agent-error-hint__message {
+  max-width: 480px;
+  text-align: center;
+  padding: 10px 16px;
+  border-radius: 4px;
+  background: var(--c8y-danger-bg, #fdecea);
+  color: var(--c8y-danger, #d32f2f);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ai-agent-debug-tools {
+  flex-shrink: 0;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--c8y-global-separator, #e0e0e0);
 }

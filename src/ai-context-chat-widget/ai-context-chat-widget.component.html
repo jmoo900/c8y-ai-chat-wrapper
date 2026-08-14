@@ -1,17 +1,42 @@
 <div class="ai-context-chat-widget">
   @if (hasContext) {
-    @if (showHeader) {
-      <div class="ai-agent-header">
+    @if (showHeader || !isInsideDashboard) {
+      <div class="ai-agent-header" [class.ai-agent-header--minimal]="!showHeader">
         <div class="ai-agent-header__info">
-          <strong>{{ agentDirectoryEntry?.name || agentName }}</strong>
-          @if (agentMetaLine) {
-            <div class="text-muted small">{{ agentMetaLine }}</div>
+          @if (showHeader) {
+            <strong>{{ agentDirectoryEntry?.name || agentName }}</strong>
+            @if (agentMetaLine) {
+              <div class="text-muted small">{{ agentMetaLine }}</div>
+            }
           }
         </div>
-        @if (cumulativeUsage; as usage) {
-          <span class="tag tag--info">Tokens: {{ usage.totalTokens }}</span>
-        }
+        <div class="ai-agent-header__controls">
+          @if (showHeader) {
+            @if (cumulativeUsage; as usage) {
+              <span class="tag tag--info">Tokens: {{ usage.totalTokens }}</span>
+            }
+          }
+          @if (!isInsideDashboard) {
+            <!-- Fallback for contexts with no real DashboardChildComponent ancestor
+                 (e.g. the config page's live preview) — <c8y-widget-action> below
+                 throws without one, so this keeps the control reachable there. -->
+            <button type="button" class="btn btn-link btn-sm ai-agent-clear-btn" (click)="clearConversation()">
+              <i class="dlt-c8y-icon-trash" aria-hidden="true"></i>
+              Clear conversation
+            </button>
+          }
+        </div>
       </div>
+    }
+    @if (isInsideDashboard) {
+      <!-- Projects into the dashboard's own shared per-widget title bar,
+           alongside the fullscreen/lock icons — the same mechanism the stock
+           "AI Agent Chat" widget uses for its own equivalent icon. -->
+      <c8y-widget-action>
+        <button type="button" class="btn btn-link btn-sm" title="Clear conversation" (click)="clearConversation()">
+          <i class="dlt-c8y-icon-trash" aria-hidden="true"></i>
+        </button>
+      </c8y-widget-action>
     }
     <div class="ai-agent-chat-container">
       <c8y-agent-chat
@@ -21,6 +46,31 @@
         [assistantMessageDisplayConfig]="assistantMessageDisplayConfig"
       />
     </div>
+    @if (showAgentRequestErrorHint) {
+      <!-- AgentChatComponent exposes no content-projection slot near its own
+           error banner or its composer, so this can't render literally
+           inside it — directly below the whole chat is the closest
+           achievable position. No background of its own, so it reads as a
+           continuation of the chat area above rather than a separate
+           colored band; only the message itself is styled. -->
+      <div class="ai-agent-error-hint" role="status">
+        <div class="ai-agent-error-hint__message">
+          This can happen when a conversation grows very long and exceeds the AI model's context limit, or from a
+          temporary AI Agent Manager issue. Starting a new chat often resolves it; open the browser console for the
+          full technical detail if it persists.
+        </div>
+      </div>
+    }
+    @if (showDebugTools) {
+      <!-- Debug-only: previews the error hint above without spending real
+           tokens on a genuinely long conversation. Enable via [debug]="true"
+           or localStorage.setItem('ai-context-chat-widget:debug', 'true'). -->
+      <div class="ai-agent-debug-tools">
+        <button type="button" class="btn btn-default btn-xs" (click)="simulateAgentRequestError()">
+          Simulate error (debug)
+        </button>
+      </div>
+    }
   } @else {
     <!--
       Codex feedback-pattern alignment (Design System > Patterns > Feedback

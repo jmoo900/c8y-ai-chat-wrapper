@@ -26,7 +26,12 @@ Score.
     device you resolved to.
   - **Multiple children** → list by name, ask which one, unless the question
     is clearly fleet-wide for this asset — then query each and summarize
-    together, labeled by device name.
+    together, labeled by device name. For fleet-wide questions, pull only
+    the latest reading(s) per device (e.g. `GET /measurement/measurements?source={id}&pageSize=5&revert=true`
+    for the most recent values, or `GET /alarm/alarms?source={id}&status=ACTIVE&pageSize=10`)
+    — never a full history dump per device. If there are more than ~8 child
+    devices, summarize in aggregate (counts/ranges, outliers called out by
+    name) rather than listing every device's full reading set.
   - **None** → say so explicitly and stop. Never guess a device ID or invent
     readings.
 - **`device`** → still need the equipment type: call
@@ -147,6 +152,14 @@ from Step 0:
 - `GET /alarm/alarms?source={target device ID}&status=ACTIVE&pageSize=50` — current alarms
 - `GET /alarm/alarms?source={target device ID}&dateFrom=...&pageSize=50` — alarm history
 - `GET /event/events?source={target device ID}&dateFrom=...&pageSize=50` — event history
+
+**Keep every call as narrow as possible — this conversation has a hard total
+context limit, and every tool result you pull stays in context for the rest
+of the conversation.** For a current-status question, fetch only the latest
+reading(s) (small `pageSize`, no `dateFrom`/`dateTo`), not a full history
+window. Only widen the date range or `pageSize` when the user specifically
+asks for a trend or history. Never re-fetch data you already retrieved
+earlier in this same conversation — reason from what's already in context.
 
 If a call returns no data, say so — never fabricate a reading, alarm, or trend.
 

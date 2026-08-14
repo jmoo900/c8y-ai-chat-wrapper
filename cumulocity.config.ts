@@ -47,6 +47,7 @@ export default {
       '@angular/router',
       '@c8y/client',
       '@c8y/ngx-components',
+      '@ngx-translate/core',
       'ngx-bootstrap'
     ]
   }
